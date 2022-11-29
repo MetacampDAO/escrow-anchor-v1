@@ -8,4 +8,6 @@ pub enum EscrowError{
  InvalidInitializerReceiveTokenAccount,
   #[msg("There is a mismatch between given and escrow account's initializer")]
  InvalidInitializer,
+ #[msg("There is a mismatch between given and escrow account's initializer release token account")]
+ InvalidInitializerReleaseTokenAccount,
 }

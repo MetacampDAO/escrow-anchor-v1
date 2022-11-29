@@ -21,4 +21,8 @@ pub mod escrow_anchor {
     pub fn exchange(ctx: Context<Exchange>) -> Result<()> {
         instructions::exchange::handler(ctx)
     }
+
+    pub fn cancel(ctx: Context<Cancel>) -> Result<()> {
+        instructions::cancel::handler(ctx)
+    }
 }

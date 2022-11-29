@@ -270,4 +270,70 @@ describe("escrow-anchor", () => {
     assert.ok(Number(_takerTokenAccountB.amount) == 0);
     assert.ok(Number(_initializerTokenAccountB.amount) == 1);
   });
+
+  it("Cancel escrow", async () => {
+    await program.methods
+      .initialize()
+      .accounts({
+        initializer: takerWallet.publicKey,
+        mint: mintA,
+        vaultAccount: vault_account_pda,
+        vaultAuthority: vault_authority_pda,
+        initializerReleaseTokenAccount: takerTokenAccountA,
+        initializerReceiveTokenAccount: takerTokenAccountB,
+        escrowAccount: escrow_account_pda,
+      })
+      .signers([takerWallet])
+      .rpc();
+    let _afterInitialize_vault = await getAccount(
+      provider.connection,
+      vault_account_pda
+    );
+    let _afterInitialize_takerTokenAccountA = await getAccount(
+      provider.connection,
+      takerTokenAccountA
+    );
+
+    let _afterInitialize_escrow_account_pda_serialized =
+      await program.account.escrowAccount.fetch(escrow_account_pda);
+
+    assert.ok(_afterInitialize_vault.owner.equals(vault_authority_pda));
+    assert.ok(
+      _afterInitialize_escrow_account_pda_serialized.initializerKey.equals(
+        takerWallet.publicKey
+      )
+    );
+    assert.ok(
+      _afterInitialize_escrow_account_pda_serialized.initializerReleaseTokenAccount.equals(
+        takerTokenAccountA
+      )
+    );
+    assert.ok(
+      _afterInitialize_escrow_account_pda_serialized.initializerReceiveTokenAccount.equals(
+        takerTokenAccountB
+      )
+    );
+    assert.ok(Number(_afterInitialize_vault.amount) == 1);
+    assert.ok(Number(_afterInitialize_takerTokenAccountA.amount) == 0);
+
+    await program.methods
+      .cancel()
+      .accounts({
+        initializer: takerWallet.publicKey,
+        vaultAccount: vault_account_pda,
+        vaultAuthority: vault_authority_pda,
+        initializerReleaseTokenAccount: takerTokenAccountA,
+        escrowAccount: escrow_account_pda,
+      })
+      .signers([takerWallet])
+      .rpc();
+
+    let _afterExchange_takerTokenAccountA = await getAccount(
+      provider.connection,
+      takerTokenAccountA
+    );
+
+    // Check all the funds are still there.
+    assert.ok(Number(_afterExchange_takerTokenAccountA.amount) == 1);
+  });
 });
