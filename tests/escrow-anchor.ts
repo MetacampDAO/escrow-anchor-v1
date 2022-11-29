@@ -174,31 +174,27 @@ describe("escrow-anchor", () => {
   });
 
   it("Initialize escrow", async () => {
-    const [_vault_account_pda] =
-      await PublicKey.findProgramAddress(
-        [Buffer.from(anchor.utils.bytes.utf8.encode("vault-account"))],
-        program.programId
-      );
+    const [_vault_account_pda] = await PublicKey.findProgramAddress(
+      [Buffer.from(anchor.utils.bytes.utf8.encode("vault-account"))],
+      program.programId
+    );
     vault_account_pda = _vault_account_pda;
 
-    const [_vault_authority_pda] =
-      await PublicKey.findProgramAddress(
-        [Buffer.from(anchor.utils.bytes.utf8.encode("vault-authority"))],
-        program.programId
-      );
+    const [_vault_authority_pda] = await PublicKey.findProgramAddress(
+      [Buffer.from(anchor.utils.bytes.utf8.encode("vault-authority"))],
+      program.programId
+    );
     vault_authority_pda = _vault_authority_pda;
 
-    const [_escrow_account_pda] =
-      await PublicKey.findProgramAddress(
-        [Buffer.from(anchor.utils.bytes.utf8.encode("escrow-account"))],
-        program.programId
-      );
+    const [_escrow_account_pda] = await PublicKey.findProgramAddress(
+      [Buffer.from(anchor.utils.bytes.utf8.encode("escrow-account"))],
+      program.programId
+    );
     escrow_account_pda = _escrow_account_pda;
 
-
-
-    await program.methods.initialize().accounts(
-      {
+    await program.methods
+      .initialize()
+      .accounts({
         initializer: initializerWallet.publicKey,
         mint: mintA,
         vaultAccount: vault_account_pda,
@@ -206,20 +202,22 @@ describe("escrow-anchor", () => {
         initializerReleaseTokenAccount: initializerTokenAccountA,
         initializerReceiveTokenAccount: initializerTokenAccountB,
         escrowAccount: escrow_account_pda,
-      }
-    ).signers([initializerWallet]).rpc();
+      })
+      .signers([initializerWallet])
+      .rpc();
 
-    let _vault = await getAccount(
-      provider.connection,
-      vault_account_pda
-    )
+    let _vault = await getAccount(provider.connection, vault_account_pda);
+    let _initializerTokenAccountA = await getAccount(provider.connection, initializerTokenAccountA);
 
-    let _escrow_account_pda_serialized = await program.account.escrowAccount.fetch(
-      escrow_account_pda
-    )
+    let _escrow_account_pda_serialized =
+      await program.account.escrowAccount.fetch(escrow_account_pda);
 
     assert.ok(_vault.owner.equals(vault_authority_pda));
-    assert.ok(_escrow_account_pda_serialized.initializerKey.equals(initializerWallet.publicKey))
+    assert.ok(
+      _escrow_account_pda_serialized.initializerKey.equals(
+        initializerWallet.publicKey
+      )
+    );
     assert.ok(
       _escrow_account_pda_serialized.initializerReleaseTokenAccount.equals(
         initializerTokenAccountA
@@ -230,5 +228,7 @@ describe("escrow-anchor", () => {
         initializerTokenAccountB
       )
     );
+    assert.ok(Number(_vault.amount) == 1);
+    assert.ok(Number(_initializerTokenAccountA.amount) == 0);
   });
 });
