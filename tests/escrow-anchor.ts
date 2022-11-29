@@ -7,6 +7,7 @@ import {
   createMint,
   getAccount,
   mintTo,
+  TOKEN_PROGRAM_ID,
 } from "@solana/spl-token";
 import { assert } from "chai";
 
@@ -207,7 +208,10 @@ describe("escrow-anchor", () => {
       .rpc();
 
     let _vault = await getAccount(provider.connection, vault_account_pda);
-    let _initializerTokenAccountA = await getAccount(provider.connection, initializerTokenAccountA);
+    let _initializerTokenAccountA = await getAccount(
+      provider.connection,
+      initializerTokenAccountA
+    );
 
     let _escrow_account_pda_serialized =
       await program.account.escrowAccount.fetch(escrow_account_pda);
@@ -230,5 +234,40 @@ describe("escrow-anchor", () => {
     );
     assert.ok(Number(_vault.amount) == 1);
     assert.ok(Number(_initializerTokenAccountA.amount) == 0);
+  });
+
+  it("Exchange escrow", async () => {
+    await program.methods
+      .exchange()
+      .accounts({
+        taker: takerWallet.publicKey,
+        takerReleaseTokenAccount: takerTokenAccountB,
+        takerReceiveTokenAccount: takerTokenAccountA,
+        initializerReceiveTokenAccount: initializerTokenAccountB,
+        initializer: initializerWallet.publicKey,
+        escrowAccount: escrow_account_pda,
+        vaultAccount: vault_account_pda,
+        vaultAuthority: vault_authority_pda,
+        tokenProgram: TOKEN_PROGRAM_ID,
+      })
+      .signers([takerWallet])
+      .rpc();
+
+    let _takerTokenAccountA = await getAccount(
+      provider.connection,
+      takerTokenAccountA
+    );
+    let _takerTokenAccountB = await getAccount(
+      provider.connection,
+      takerTokenAccountB
+    );
+    let _initializerTokenAccountB = await getAccount(
+      provider.connection,
+      initializerTokenAccountB
+    );
+
+    assert.ok(Number(_takerTokenAccountA.amount) == 1);
+    assert.ok(Number(_takerTokenAccountB.amount) == 0);
+    assert.ok(Number(_initializerTokenAccountB.amount) == 1);
   });
 });
