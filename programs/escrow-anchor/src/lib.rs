@@ -6,7 +6,7 @@ pub mod instructions;
 pub mod error;
 
 pub use contexts::*;
-declare_id!("4wHt7GM2iTFL5F9ENN3i1bWfhmh6iqyarrjbbZfvqcb1");
+declare_id!("Ao8RDJ2x45v1fBm3Y3VLHQyLTmGqNQKp4n9f6bnEFDuB");
 
 const VAULT_AUTHORITY_SEED: &[u8] = b"vault-authority";
 
