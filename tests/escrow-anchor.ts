@@ -23,9 +23,11 @@ describe("escrow-anchor", () => {
   let initializerTokenAccountB: PublicKey;
   let takerTokenAccountA: PublicKey;
   let takerTokenAccountB: PublicKey;
-  let vault_account_pda: PublicKey;
   let vault_authority_pda: PublicKey;
-  let escrow_account_pda: PublicKey;
+  let vault_account_pda_mintA: PublicKey;
+  let vault_account_pda_mintB: PublicKey;
+  let escrow_account_pda_mintA: PublicKey;
+  let escrow_account_pda_mintB: PublicKey;
 
   const takerAmount = 1000;
   const initializerAmount = 500;
@@ -100,6 +102,15 @@ describe("escrow-anchor", () => {
       provider.connection,
       mintAuthority,
       mintA,
+      takerTokenAccountA,
+      mintAuthority,
+      initializerAmount
+    );
+
+    await mintTo(
+      provider.connection,
+      mintAuthority,
+      mintA,
       initializerTokenAccountA,
       mintAuthority,
       initializerAmount
@@ -125,6 +136,15 @@ describe("escrow-anchor", () => {
       takerWallet,
       mintB,
       takerWallet.publicKey
+    );
+
+    await mintTo(
+      provider.connection,
+      mintAuthority,
+      mintB,
+      initializerTokenAccountB,
+      mintAuthority,
+      takerAmount
     );
 
     await mintTo(
@@ -162,13 +182,13 @@ describe("escrow-anchor", () => {
     );
     assert.ok(_initializerTokenAccountA.mint.equals(mintA));
 
-    assert.ok(Number(_initializerTokenAccountB.amount) == 0);
+    assert.ok(Number(_initializerTokenAccountB.amount) == takerAmount);
     assert.ok(
       _initializerTokenAccountB.owner.equals(initializerWallet.publicKey)
     );
     assert.ok(_initializerTokenAccountB.mint.equals(mintB));
 
-    assert.ok(Number(_takerTokenAccountA.amount) == 0);
+    assert.ok(Number(_takerTokenAccountA.amount) == initializerAmount);
     assert.ok(_takerTokenAccountA.owner.equals(takerWallet.publicKey));
     assert.ok(_takerTokenAccountA.mint.equals(mintA));
 
@@ -178,14 +198,11 @@ describe("escrow-anchor", () => {
   });
 
   it("Initialize escrow", async () => {
-    const [_vault_account_pda] = await PublicKey.findProgramAddress(
-      [
-        Buffer.from(anchor.utils.bytes.utf8.encode("vault-account")),
-        initializerWallet.publicKey.toBuffer(),
-      ],
-      program.programId
-    );
-    vault_account_pda = _vault_account_pda;
+    // INITIALIZER TO INITIALIZE TWO DIFFERENT ESCROW TRADE
+    // INITIALIZER: 500 (A), 1000 (B)
+    // TAKER: 500 (A), 1000 (B)
+    // TRADE #1 INITIALIZER TRADE 500 (A) FOR 1000 (B)
+    // TRADE #2 INITIALIZER TRADE 1000 (B) FOR 500 (A)
 
     const [_vault_authority_pda] = await PublicKey.findProgramAddress(
       [Buffer.from(anchor.utils.bytes.utf8.encode("vault-authority"))],
@@ -193,66 +210,153 @@ describe("escrow-anchor", () => {
     );
     vault_authority_pda = _vault_authority_pda;
 
-    const [_escrow_account_pda] = await PublicKey.findProgramAddress(
+    const [_vault_account_pda_mintA] = await PublicKey.findProgramAddress(
       [
-        Buffer.from(anchor.utils.bytes.utf8.encode("escrow-account")),
+        Buffer.from(anchor.utils.bytes.utf8.encode("vault-account")),
         initializerWallet.publicKey.toBuffer(),
+        mintA.toBuffer(),
       ],
       program.programId
     );
-    escrow_account_pda = _escrow_account_pda;
+    vault_account_pda_mintA = _vault_account_pda_mintA;
+
+    const [_vault_account_pda_mintB] = await PublicKey.findProgramAddress(
+      [
+        Buffer.from(anchor.utils.bytes.utf8.encode("vault-account")),
+        initializerWallet.publicKey.toBuffer(),
+        mintB.toBuffer(),
+      ],
+      program.programId
+    );
+    vault_account_pda_mintB = _vault_account_pda_mintB;
+
+    const [_escrow_account_pda_mintA] = await PublicKey.findProgramAddress(
+      [
+        Buffer.from(anchor.utils.bytes.utf8.encode("escrow-account")),
+        initializerWallet.publicKey.toBuffer(),
+        mintA.toBuffer(),
+      ],
+      program.programId
+    );
+    escrow_account_pda_mintA = _escrow_account_pda_mintA;
+
+    const [_escrow_account_pda_mintB] = await PublicKey.findProgramAddress(
+      [
+        Buffer.from(anchor.utils.bytes.utf8.encode("escrow-account")),
+        initializerWallet.publicKey.toBuffer(),
+        mintB.toBuffer(),
+      ],
+      program.programId
+    );
+    escrow_account_pda_mintB = _escrow_account_pda_mintB;
 
     await program.methods
       .initialize(new anchor.BN(initializerAmount), new anchor.BN(takerAmount))
       .accounts({
         initializer: initializerWallet.publicKey,
         mint: mintA,
-        vaultAccount: vault_account_pda,
+        vaultAccount: vault_account_pda_mintA,
         vaultAuthority: vault_authority_pda,
         initializerReleaseTokenAccount: initializerTokenAccountA,
         initializerReceiveTokenAccount: initializerTokenAccountB,
-        escrowAccount: escrow_account_pda,
+        escrowAccount: escrow_account_pda_mintA,
       })
       .signers([initializerWallet])
       .rpc();
 
-    let _vault = await getAccount(provider.connection, vault_account_pda);
+    await program.methods
+      .initialize(new anchor.BN(takerAmount), new anchor.BN(initializerAmount))
+      .accounts({
+        initializer: initializerWallet.publicKey,
+        mint: mintB,
+        vaultAccount: vault_account_pda_mintB,
+        vaultAuthority: vault_authority_pda,
+        initializerReleaseTokenAccount: initializerTokenAccountB,
+        initializerReceiveTokenAccount: initializerTokenAccountA,
+        escrowAccount: escrow_account_pda_mintB,
+      })
+      .signers([initializerWallet])
+      .rpc();
+
+    let _vault_mintA = await getAccount(
+      provider.connection,
+      vault_account_pda_mintA
+    );
+    let _vault_mintB = await getAccount(
+      provider.connection,
+      vault_account_pda_mintB
+    );
+
     let _initializerTokenAccountA = await getAccount(
       provider.connection,
       initializerTokenAccountA
     );
+    let _initializerTokenAccountB = await getAccount(
+      provider.connection,
+      initializerTokenAccountB
+    );
 
-    let _escrow_account_pda_serialized =
-      await program.account.escrowAccount.fetch(escrow_account_pda);
+    let _escrow_account_pda_mintA_serialized =
+      await program.account.escrowAccount.fetch(escrow_account_pda_mintA);
+    let _escrow_account_pda_mintB_serialized =
+      await program.account.escrowAccount.fetch(escrow_account_pda_mintB);
 
-    assert.ok(_vault.owner.equals(vault_authority_pda));
+    assert.ok(_vault_mintA.owner.equals(vault_authority_pda));
+    assert.ok(_vault_mintB.owner.equals(vault_authority_pda));
     assert.ok(
-      _escrow_account_pda_serialized.initializerKey.equals(
+      _escrow_account_pda_mintA_serialized.initializerKey.equals(
         initializerWallet.publicKey
       )
     );
     assert.ok(
-      _escrow_account_pda_serialized.initializerReleaseTokenAccount.equals(
+      _escrow_account_pda_mintB_serialized.initializerKey.equals(
+        initializerWallet.publicKey
+      )
+    );
+    assert.ok(
+      _escrow_account_pda_mintA_serialized.initializerReleaseTokenAccount.equals(
         initializerTokenAccountA
       )
     );
     assert.ok(
-      _escrow_account_pda_serialized.initializerReceiveTokenAccount.equals(
+      _escrow_account_pda_mintA_serialized.initializerReceiveTokenAccount.equals(
         initializerTokenAccountB
       )
     );
     assert.ok(
-      _escrow_account_pda_serialized.initializerAmount.toNumber() ==
+      _escrow_account_pda_mintB_serialized.initializerReleaseTokenAccount.equals(
+        initializerTokenAccountB
+      )
+    );
+    assert.ok(
+      _escrow_account_pda_mintB_serialized.initializerReceiveTokenAccount.equals(
+        initializerTokenAccountA
+      )
+    );
+    assert.ok(
+      _escrow_account_pda_mintA_serialized.initializerAmount.toNumber() ==
         initializerAmount
     );
     assert.ok(
-      _escrow_account_pda_serialized.takerAmount.toNumber() == takerAmount
+      _escrow_account_pda_mintA_serialized.takerAmount.toNumber() == takerAmount
     );
-    assert.ok(Number(_vault.amount) == initializerAmount);
+    assert.ok(
+      _escrow_account_pda_mintB_serialized.initializerAmount.toNumber() ==
+        takerAmount
+    );
+    assert.ok(
+      _escrow_account_pda_mintB_serialized.takerAmount.toNumber() ==
+        initializerAmount
+    );
+    assert.ok(Number(_vault_mintA.amount) == initializerAmount);
+    assert.ok(Number(_vault_mintB.amount) == takerAmount);
     assert.ok(Number(_initializerTokenAccountA.amount) == 0);
+    assert.ok(Number(_initializerTokenAccountB.amount) == 0);
   });
 
   it("Exchange escrow", async () => {
+    // EXECUTE TRADE #1
+    // INITIALIZER TRADE 500 (A) FOR 1000 (B) FROM TAKER
     await program.methods
       .exchange()
       .accounts({
@@ -261,8 +365,8 @@ describe("escrow-anchor", () => {
         takerReceiveTokenAccount: takerTokenAccountA,
         initializerReceiveTokenAccount: initializerTokenAccountB,
         initializer: initializerWallet.publicKey,
-        escrowAccount: escrow_account_pda,
-        vaultAccount: vault_account_pda,
+        escrowAccount: escrow_account_pda_mintA,
+        vaultAccount: vault_account_pda_mintA,
         vaultAuthority: vault_authority_pda,
         tokenProgram: TOKEN_PROGRAM_ID,
       })
@@ -282,94 +386,95 @@ describe("escrow-anchor", () => {
       initializerTokenAccountB
     );
 
-    assert.ok(Number(_takerTokenAccountA.amount) == initializerAmount);
+    assert.ok(Number(_takerTokenAccountA.amount) == takerAmount); // 500 (INITIAL) + 500 (RECEIVED)
     assert.ok(Number(_takerTokenAccountB.amount) == 0);
-    assert.ok(Number(_initializerTokenAccountB.amount) == takerAmount);
+    assert.ok(Number(_initializerTokenAccountB.amount) == takerAmount); // 1000 (RECEIVED)
   });
 
   it("Cancel escrow", async () => {
-    const [_vault_account_pda] = await PublicKey.findProgramAddress(
-      [
-        Buffer.from(anchor.utils.bytes.utf8.encode("vault-account")),
-        takerWallet.publicKey.toBuffer(),
-      ],
-      program.programId
-    );
-    vault_account_pda = _vault_account_pda;
+    // const [_vault_account_pda] = await PublicKey.findProgramAddress(
+    //   [
+    //     Buffer.from(anchor.utils.bytes.utf8.encode("vault-account")),
+    //     takerWallet.publicKey.toBuffer(),
+    //   ],
+    //   program.programId
+    // );
+    // vault_account_pda_mintA = _vault_account_pda;
 
-    const [_escrow_account_pda] = await PublicKey.findProgramAddress(
-      [
-        Buffer.from(anchor.utils.bytes.utf8.encode("escrow-account")),
-        takerWallet.publicKey.toBuffer(),
-      ],
-      program.programId
-    );
-    escrow_account_pda = _escrow_account_pda;
+    // const [_escrow_account_pda] = await PublicKey.findProgramAddress(
+    //   [
+    //     Buffer.from(anchor.utils.bytes.utf8.encode("escrow-account")),
+    //     takerWallet.publicKey.toBuffer(),
+    //   ],
+    //   program.programId
+    // );
+    // escrow_account_pda_mintA = _escrow_account_pda;
 
-    await program.methods
-      .initialize(new anchor.BN(initializerAmount), new anchor.BN(takerAmount))
-      .accounts({
-        initializer: takerWallet.publicKey,
-        mint: mintA,
-        vaultAccount: vault_account_pda,
-        vaultAuthority: vault_authority_pda,
-        initializerReleaseTokenAccount: takerTokenAccountA,
-        initializerReceiveTokenAccount: takerTokenAccountB,
-        escrowAccount: escrow_account_pda,
-      })
-      .signers([takerWallet])
-      .rpc();
-    let _afterInitialize_vault = await getAccount(
-      provider.connection,
-      vault_account_pda
-    );
-    let _afterInitialize_takerTokenAccountA = await getAccount(
-      provider.connection,
-      takerTokenAccountA
-    );
+    // await program.methods
+    //   .initialize(new anchor.BN(initializerAmount), new anchor.BN(takerAmount))
+    //   .accounts({
+    //     initializer: takerWallet.publicKey,
+    //     mint: mintA,
+    //     vaultAccount: vault_account_pda_mintA,
+    //     vaultAuthority: vault_authority_pda,
+    //     initializerReleaseTokenAccount: takerTokenAccountA,
+    //     initializerReceiveTokenAccount: takerTokenAccountB,
+    //     escrowAccount: escrow_account_pda_mintA,
+    //   })
+    //   .signers([takerWallet])
+    //   .rpc();
+    // let _afterInitialize_vault = await getAccount(
+    //   provider.connection,
+    //   vault_account_pda_mintA
+    // );
+    // let _afterInitialize_takerTokenAccountA = await getAccount(
+    //   provider.connection,
+    //   takerTokenAccountA
+    // );
 
-    let _afterInitialize_escrow_account_pda_serialized =
-      await program.account.escrowAccount.fetch(escrow_account_pda);
+    // let _afterInitialize_escrow_account_pda_serialized =
+    //   await program.account.escrowAccount.fetch(escrow_account_pda_mintA);
 
-    assert.ok(_afterInitialize_vault.owner.equals(vault_authority_pda));
-    assert.ok(
-      _afterInitialize_escrow_account_pda_serialized.initializerKey.equals(
-        takerWallet.publicKey
-      )
-    );
-    assert.ok(
-      _afterInitialize_escrow_account_pda_serialized.initializerReleaseTokenAccount.equals(
-        takerTokenAccountA
-      )
-    );
-    assert.ok(
-      _afterInitialize_escrow_account_pda_serialized.initializerReceiveTokenAccount.equals(
-        takerTokenAccountB
-      )
-    );
-    assert.ok(Number(_afterInitialize_vault.amount) == initializerAmount);
-    assert.ok(Number(_afterInitialize_takerTokenAccountA.amount) == 0);
+    // assert.ok(_afterInitialize_vault.owner.equals(vault_authority_pda));
+    // assert.ok(
+    //   _afterInitialize_escrow_account_pda_serialized.initializerKey.equals(
+    //     takerWallet.publicKey
+    //   )
+    // );
+    // assert.ok(
+    //   _afterInitialize_escrow_account_pda_serialized.initializerReleaseTokenAccount.equals(
+    //     takerTokenAccountA
+    //   )
+    // );
+    // assert.ok(
+    //   _afterInitialize_escrow_account_pda_serialized.initializerReceiveTokenAccount.equals(
+    //     takerTokenAccountB
+    //   )
+    // );
+    // assert.ok(Number(_afterInitialize_vault.amount) == initializerAmount);
+    // assert.ok(Number(_afterInitialize_takerTokenAccountA.amount) == 0);
 
+    // CLOSE TRADE #2
     await program.methods
       .cancel()
       .accounts({
-        initializer: takerWallet.publicKey,
-        vaultAccount: vault_account_pda,
+        initializer: initializerWallet.publicKey,
+        vaultAccount: vault_account_pda_mintB,
         vaultAuthority: vault_authority_pda,
-        initializerReleaseTokenAccount: takerTokenAccountA,
-        escrowAccount: escrow_account_pda,
+        initializerReleaseTokenAccount: initializerTokenAccountB,
+        escrowAccount: escrow_account_pda_mintB,
       })
-      .signers([takerWallet])
+      .signers([initializerWallet])
       .rpc();
 
-    let _afterExchange_takerTokenAccountA = await getAccount(
+    let _afterExchange_initializerTokenAccountB = await getAccount(
       provider.connection,
-      takerTokenAccountA
+      initializerTokenAccountB
     );
 
     // Check all the funds are still there.
     assert.ok(
-      Number(_afterExchange_takerTokenAccountA.amount) == initializerAmount
-    );
+      Number(_afterExchange_initializerTokenAccountB.amount) == takerAmount * 2
+    ); // 1000 (AFTER TRADE) + 1000 (REFUND)
   });
 });
