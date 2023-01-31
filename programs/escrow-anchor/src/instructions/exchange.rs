@@ -10,11 +10,14 @@ pub fn handler(ctx: Context<Exchange>) -> Result<()> {
     );
     let authority_seeds = &[&VAULT_AUTHORITY_SEED[..], &[vault_authority_bump]];
 
-    token::transfer(ctx.accounts.into_transfer_to_initializer_context(), 1)?;
+    token::transfer(
+        ctx.accounts.into_transfer_to_initializer_context(),
+        ctx.accounts.escrow_account.taker_amount
+    )?;
 
     token::transfer(
         ctx.accounts.into_transfer_to_taker_context().with_signer(&[&authority_seeds[..]]),
-        1
+        ctx.accounts.escrow_account.initializer_amount
     )?;
 
     token::close_account(ctx.accounts.into_close_context().with_signer(&[&authority_seeds[..]]))?;

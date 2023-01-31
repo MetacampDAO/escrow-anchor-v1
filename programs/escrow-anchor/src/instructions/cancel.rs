@@ -12,7 +12,7 @@ pub fn handler(ctx: Context<Cancel>) -> Result<()> {
 
     token::transfer(
         ctx.accounts.into_transfer_to_initializer_context().with_signer(&[&authority_seeds[..]]),
-        1
+        ctx.accounts.escrow_account.initializer_amount
     )?;
 
     token::close_account(ctx.accounts.into_close_context().with_signer(&[&authority_seeds[..]]))?;
