@@ -288,6 +288,24 @@ describe("escrow-anchor", () => {
   });
 
   it("Cancel escrow", async () => {
+    const [_vault_account_pda] = await PublicKey.findProgramAddress(
+      [
+        Buffer.from(anchor.utils.bytes.utf8.encode("vault-account")),
+        takerWallet.publicKey.toBuffer(),
+      ],
+      program.programId
+    );
+    vault_account_pda = _vault_account_pda;
+
+    const [_escrow_account_pda] = await PublicKey.findProgramAddress(
+      [
+        Buffer.from(anchor.utils.bytes.utf8.encode("escrow-account")),
+        takerWallet.publicKey.toBuffer(),
+      ],
+      program.programId
+    );
+    escrow_account_pda = _escrow_account_pda;
+
     await program.methods
       .initialize(new anchor.BN(initializerAmount), new anchor.BN(takerAmount))
       .accounts({
