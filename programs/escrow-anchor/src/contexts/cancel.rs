@@ -1,7 +1,7 @@
 use anchor_lang::prelude::*;
-use anchor_spl::token::{TokenAccount, Transfer, CloseAccount};
+use anchor_spl::token::{ TokenAccount, Transfer, CloseAccount };
 
-use crate::{error::EscrowError, states::EscrowAccount};
+use crate::{ error::EscrowError, states::EscrowAccount };
 
 #[derive(Accounts)]
 pub struct Cancel<'info> {
@@ -27,14 +27,11 @@ pub struct Cancel<'info> {
 
 impl<'info> Cancel<'info> {
     pub fn into_transfer_to_initializer_context(
-        &self,
+        &self
     ) -> CpiContext<'_, '_, '_, 'info, Transfer<'info>> {
         let cpi_accounts = Transfer {
             from: self.vault_account.to_account_info().clone(),
-            to: self
-                .initializer_release_token_account
-                .to_account_info()
-                .clone(),
+            to: self.initializer_release_token_account.to_account_info().clone(),
             authority: self.vault_authority.clone(),
         };
         CpiContext::new(self.token_program.clone(), cpi_accounts)

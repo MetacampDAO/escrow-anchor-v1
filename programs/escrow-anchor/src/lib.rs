@@ -14,8 +14,8 @@ const VAULT_AUTHORITY_SEED: &[u8] = b"vault-authority";
 pub mod escrow_anchor {
     use super::*;
 
-    pub fn initialize(ctx: Context<Initialize>) -> Result<()> {
-        instructions::initialize::handler(ctx)
+    pub fn initialize(ctx: Context<Initialize>, amt: u64) -> Result<()> {
+        instructions::initialize::handler(ctx, amt)
     }
 
     pub fn exchange(ctx: Context<Exchange>) -> Result<()> {

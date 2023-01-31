@@ -1,8 +1,7 @@
 use anchor_lang::prelude::*;
-use anchor_spl::token::{TokenAccount, Mint, Transfer};
+use anchor_spl::token::{ TokenAccount, Mint, Transfer };
 
-use crate::states::{EscrowAccount, ESCROW_ACCOUNT_SEED, ESCROW_ACCOUNT_LEN};
-
+use crate::states::{ EscrowAccount, ESCROW_ACCOUNT_SEED, ESCROW_ACCOUNT_LEN };
 
 #[derive(Accounts)]
 pub struct Initialize<'info> {
@@ -15,13 +14,10 @@ pub struct Initialize<'info> {
         bump,
         payer = initializer,
         token::mint = mint,
-        token::authority = vault_authority,
+        token::authority = vault_authority
     )]
     pub vault_account: Account<'info, TokenAccount>,
-    #[account(
-        seeds = [b"vault-authority".as_ref()],
-        bump,
-    )]
+    #[account(seeds = [b"vault-authority".as_ref()], bump)]
     /// CHECK: This is not dangerous because we have checked account using seeds
     pub vault_authority: UncheckedAccount<'info>,
     #[account(mut)]
@@ -42,14 +38,10 @@ pub struct Initialize<'info> {
     pub token_program: AccountInfo<'info>,
 }
 
-
-impl <'info> Initialize <'info> {
+impl<'info> Initialize<'info> {
     pub fn into_transfer_to_pda_context(&self) -> CpiContext<'_, '_, '_, 'info, Transfer<'info>> {
         let cpi_accounts = Transfer {
-            from: self
-                .initializer_release_token_account
-                .to_account_info()
-                .clone(),
+            from: self.initializer_release_token_account.to_account_info().clone(),
             to: self.vault_account.to_account_info().clone(),
             authority: self.initializer.to_account_info().clone(),
         };
