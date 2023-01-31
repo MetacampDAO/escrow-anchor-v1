@@ -179,7 +179,10 @@ describe("escrow-anchor", () => {
 
   it("Initialize escrow", async () => {
     const [_vault_account_pda] = await PublicKey.findProgramAddress(
-      [Buffer.from(anchor.utils.bytes.utf8.encode("vault-account"))],
+      [
+        Buffer.from(anchor.utils.bytes.utf8.encode("vault-account")),
+        initializerWallet.publicKey.toBuffer(),
+      ],
       program.programId
     );
     vault_account_pda = _vault_account_pda;
@@ -191,7 +194,10 @@ describe("escrow-anchor", () => {
     vault_authority_pda = _vault_authority_pda;
 
     const [_escrow_account_pda] = await PublicKey.findProgramAddress(
-      [Buffer.from(anchor.utils.bytes.utf8.encode("escrow-account"))],
+      [
+        Buffer.from(anchor.utils.bytes.utf8.encode("escrow-account")),
+        initializerWallet.publicKey.toBuffer(),
+      ],
       program.programId
     );
     escrow_account_pda = _escrow_account_pda;

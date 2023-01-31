@@ -10,7 +10,7 @@ pub struct Initialize<'info> {
     pub mint: Account<'info, Mint>,
     #[account(
         init,
-        seeds = [b"vault-account".as_ref()],
+        seeds = [b"vault-account".as_ref(), initializer.key.as_ref()],
         bump,
         payer = initializer,
         token::mint = mint,
@@ -25,7 +25,7 @@ pub struct Initialize<'info> {
     pub initializer_receive_token_account: Account<'info, TokenAccount>,
     #[account(
         init,
-        seeds = [ESCROW_ACCOUNT_SEED],
+        seeds = [ESCROW_ACCOUNT_SEED, initializer.key.as_ref()],
         bump,
         payer = initializer,
         space = ESCROW_ACCOUNT_LEN
