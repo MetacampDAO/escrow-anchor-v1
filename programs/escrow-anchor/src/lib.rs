@@ -22,8 +22,8 @@ pub mod escrow_anchor {
         instructions::initialize::handler(ctx, initializer_amount, taker_amount)
     }
 
-    pub fn exchange(ctx: Context<Exchange>) -> Result<()> {
-        instructions::exchange::handler(ctx)
+    pub fn exchange(ctx: Context<Exchange>, exchange_amount: u64) -> Result<()> {
+        instructions::exchange::handler(ctx, exchange_amount)
     }
 
     pub fn cancel(ctx: Context<Cancel>) -> Result<()> {

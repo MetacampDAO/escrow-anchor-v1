@@ -37,6 +37,9 @@ describe("escrow-anchor", () => {
   const takerWallet = anchor.web3.Keypair.generate();
 
   it("Initialize program state", async () => {
+    // INITIALIZER: 500 (A), 1000 (B)
+    // TAKER: 500 (A), 1000 (B)
+
     const airdropInitializerSig = await provider.connection.requestAirdrop(
       initializerWallet.publicKey,
       2e9
@@ -197,12 +200,10 @@ describe("escrow-anchor", () => {
     assert.ok(_takerTokenAccountB.mint.equals(mintB));
   });
 
-  it("Initialize escrow", async () => {
+  it("Initialize escrow - trade #1 & #2", async () => {
     // INITIALIZER TO INITIALIZE TWO DIFFERENT ESCROW TRADE
-    // INITIALIZER: 500 (A), 1000 (B)
-    // TAKER: 500 (A), 1000 (B)
-    // TRADE #1 INITIALIZER TRADE 500 (A) FOR 1000 (B)
-    // TRADE #2 INITIALIZER TRADE 1000 (B) FOR 500 (A)
+    // TRADE #1 INITIALIZER TRADE 500 (A) FOR 1000 (B) WITH MIN. 100 (B)
+    // TRADE #2 INITIALIZER TRADE 1000 (B) FOR 500 (A) WITH MIN. 100 (A)
 
     const [_vault_authority_pda] = await PublicKey.findProgramAddress(
       [Buffer.from(anchor.utils.bytes.utf8.encode("vault-authority"))],
@@ -354,11 +355,12 @@ describe("escrow-anchor", () => {
     assert.ok(Number(_initializerTokenAccountB.amount) == 0);
   });
 
-  it("Exchange escrow", async () => {
-    // EXECUTE TRADE #1
-    // INITIALIZER TRADE 500 (A) FOR 1000 (B) FROM TAKER
+  it("Exchange escrow - partial trade #1", async () => {
+    // INITIALIZER TRADE 500 (A) FOR 1000 (B)
+    // TAKER OFFER 500 (B) FOR 250 (A)
+
     await program.methods
-      .exchange()
+      .exchange(new anchor.BN(500))
       .accounts({
         taker: takerWallet.publicKey,
         takerReleaseTokenAccount: takerTokenAccountB,
@@ -385,96 +387,74 @@ describe("escrow-anchor", () => {
       provider.connection,
       initializerTokenAccountB
     );
+    let _vaultAccountA = await getAccount(
+      provider.connection,
+      vault_account_pda_mintA
+    );
 
-    assert.ok(Number(_takerTokenAccountA.amount) == takerAmount); // 500 (INITIAL) + 500 (RECEIVED)
-    assert.ok(Number(_takerTokenAccountB.amount) == 0);
-    assert.ok(Number(_initializerTokenAccountB.amount) == takerAmount); // 1000 (RECEIVED)
+    assert.ok(Number(_vaultAccountA.amount) == 250); // 500 - 250 (RELEASE)
+    assert.ok(Number(_takerTokenAccountA.amount) == 750); // 500 + 250 (RECEIVED)
+    assert.ok(Number(_takerTokenAccountB.amount) == 500); // 1000 - 500 (RELEASE)
+    assert.ok(Number(_initializerTokenAccountB.amount) == 500); // 500 (RECEIVED)
   });
 
-  it("Cancel escrow", async () => {
-    // const [_vault_account_pda] = await PublicKey.findProgramAddress(
-    //   [
-    //     Buffer.from(anchor.utils.bytes.utf8.encode("vault-account")),
-    //     takerWallet.publicKey.toBuffer(),
-    //   ],
-    //   program.programId
-    // );
-    // vault_account_pda_mintA = _vault_account_pda;
-
-    // const [_escrow_account_pda] = await PublicKey.findProgramAddress(
-    //   [
-    //     Buffer.from(anchor.utils.bytes.utf8.encode("escrow-account")),
-    //     takerWallet.publicKey.toBuffer(),
-    //   ],
-    //   program.programId
-    // );
-    // escrow_account_pda_mintA = _escrow_account_pda;
-
-    // await program.methods
-    //   .initialize(new anchor.BN(initializerAmount), new anchor.BN(takerAmount))
-    //   .accounts({
-    //     initializer: takerWallet.publicKey,
-    //     mint: mintA,
-    //     vaultAccount: vault_account_pda_mintA,
-    //     vaultAuthority: vault_authority_pda,
-    //     initializerReleaseTokenAccount: takerTokenAccountA,
-    //     initializerReceiveTokenAccount: takerTokenAccountB,
-    //     escrowAccount: escrow_account_pda_mintA,
-    //   })
-    //   .signers([takerWallet])
-    //   .rpc();
-    // let _afterInitialize_vault = await getAccount(
-    //   provider.connection,
-    //   vault_account_pda_mintA
-    // );
-    // let _afterInitialize_takerTokenAccountA = await getAccount(
-    //   provider.connection,
-    //   takerTokenAccountA
-    // );
-
-    // let _afterInitialize_escrow_account_pda_serialized =
-    //   await program.account.escrowAccount.fetch(escrow_account_pda_mintA);
-
-    // assert.ok(_afterInitialize_vault.owner.equals(vault_authority_pda));
-    // assert.ok(
-    //   _afterInitialize_escrow_account_pda_serialized.initializerKey.equals(
-    //     takerWallet.publicKey
-    //   )
-    // );
-    // assert.ok(
-    //   _afterInitialize_escrow_account_pda_serialized.initializerReleaseTokenAccount.equals(
-    //     takerTokenAccountA
-    //   )
-    // );
-    // assert.ok(
-    //   _afterInitialize_escrow_account_pda_serialized.initializerReceiveTokenAccount.equals(
-    //     takerTokenAccountB
-    //   )
-    // );
-    // assert.ok(Number(_afterInitialize_vault.amount) == initializerAmount);
-    // assert.ok(Number(_afterInitialize_takerTokenAccountA.amount) == 0);
-
-    // CLOSE TRADE #2
+  it("Cancel escrow - partial trade #1", async () => {
     await program.methods
       .cancel()
       .accounts({
         initializer: initializerWallet.publicKey,
-        vaultAccount: vault_account_pda_mintB,
+        vaultAccount: vault_account_pda_mintA,
         vaultAuthority: vault_authority_pda,
-        initializerReleaseTokenAccount: initializerTokenAccountB,
-        escrowAccount: escrow_account_pda_mintB,
+        initializerReleaseTokenAccount: initializerTokenAccountA,
+        escrowAccount: escrow_account_pda_mintA,
       })
       .signers([initializerWallet])
       .rpc();
 
-    let _afterExchange_initializerTokenAccountB = await getAccount(
+    let _afterExchange_initializerTokenAccountA = await getAccount(
       provider.connection,
-      initializerTokenAccountB
+      initializerTokenAccountA
     );
 
     // Check all the funds are still there.
-    assert.ok(
-      Number(_afterExchange_initializerTokenAccountB.amount) == takerAmount * 2
-    ); // 1000 (AFTER TRADE) + 1000 (REFUND)
+    assert.ok(Number(_afterExchange_initializerTokenAccountA.amount) == 750); // 500 (INITIAL) + 250 (REFUND)
+  });
+
+  it("Exchange escrow - complete trade #2", async () => {
+    // INITIALIZER TRADE 1000 (B) FOR 500 (A)
+    // TAKER OFFER 500 (A) FOR 1000 (A)
+
+    await program.methods
+      .exchange(new anchor.BN(initializerAmount))
+      .accounts({
+        taker: takerWallet.publicKey,
+        takerReleaseTokenAccount: takerTokenAccountA,
+        takerReceiveTokenAccount: takerTokenAccountB,
+        initializerReceiveTokenAccount: initializerTokenAccountA,
+        initializer: initializerWallet.publicKey,
+        escrowAccount: escrow_account_pda_mintB,
+        vaultAccount: vault_account_pda_mintB,
+        vaultAuthority: vault_authority_pda,
+        tokenProgram: TOKEN_PROGRAM_ID,
+      })
+      .signers([takerWallet])
+      .rpc();
+
+    let _takerTokenAccountA = await getAccount(
+      provider.connection,
+      takerTokenAccountA
+    );
+    let _takerTokenAccountB = await getAccount(
+      provider.connection,
+      takerTokenAccountB
+    );
+    let _initializerTokenAccountA = await getAccount(
+      provider.connection,
+      initializerTokenAccountA
+    );
+
+    assert.ok(Number(_takerTokenAccountA.amount) == 250); // 750 - 500 (RELEASE)
+    assert.ok(Number(_takerTokenAccountB.amount) == 1500); // 500 + 1000 (RECEIVED)
+    assert.ok(Number(_initializerTokenAccountA.amount) == 500); // 500 (RECEIVED)
   });
 });
