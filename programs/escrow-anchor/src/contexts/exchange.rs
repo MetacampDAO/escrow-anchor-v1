@@ -1,5 +1,5 @@
 use anchor_lang::prelude::*;
-use anchor_spl::token::{ CloseAccount, TokenAccount, Transfer };
+use anchor_spl::token::{ TokenAccount, Transfer };
 
 use crate::{ error::EscrowError, states::EscrowAccount };
 
@@ -22,7 +22,6 @@ pub struct Exchange<'info> {
         constraint = escrow_account.initializer_receive_token_account == 
             *initializer_receive_token_account.to_account_info().key @ EscrowError::InvalidInitializerReceiveTokenAccount,
         constraint = escrow_account.initializer_key == *initializer.key @ EscrowError::InvalidInitializer,
-        close = initializer
     )]
     pub escrow_account: Account<'info, EscrowAccount>,
     #[account(mut)]
@@ -49,15 +48,6 @@ impl<'info> Exchange<'info> {
         let cpi_accounts = Transfer {
             from: self.vault_account.to_account_info().clone(),
             to: self.taker_receive_token_account.to_account_info().clone(),
-            authority: self.vault_authority.clone(),
-        };
-        CpiContext::new(self.token_program.clone(), cpi_accounts)
-    }
-
-    pub fn into_close_context(&self) -> CpiContext<'_, '_, '_, 'info, CloseAccount<'info>> {
-        let cpi_accounts = CloseAccount {
-            account: self.vault_account.to_account_info().clone(),
-            destination: self.initializer.clone(),
             authority: self.vault_authority.clone(),
         };
         CpiContext::new(self.token_program.clone(), cpi_accounts)

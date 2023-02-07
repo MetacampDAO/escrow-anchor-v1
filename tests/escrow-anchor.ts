@@ -395,7 +395,7 @@ describe("escrow-anchor", () => {
     assert.ok(Number(_vaultAccountA.amount) == 250); // 500 - 250 (RELEASE)
     assert.ok(Number(_takerTokenAccountA.amount) == 750); // 500 + 250 (RECEIVED)
     assert.ok(Number(_takerTokenAccountB.amount) == 500); // 1000 - 500 (RELEASE)
-    assert.ok(Number(_initializerTokenAccountB.amount) == 500); // 500 (RECEIVED)
+    assert.ok(Number(_initializerTokenAccountB.amount) == 500); // 0 + 500 (RECEIVED)
   });
 
   it("Cancel escrow - partial trade #1", async () => {
@@ -416,8 +416,7 @@ describe("escrow-anchor", () => {
       initializerTokenAccountA
     );
 
-    // Check all the funds are still there.
-    assert.ok(Number(_afterExchange_initializerTokenAccountA.amount) == 750); // 500 (INITIAL) + 250 (REFUND)
+    assert.ok(Number(_afterExchange_initializerTokenAccountA.amount) == 250); // 0 + 250 (REFUND)
   });
 
   it("Exchange escrow - complete trade #2", async () => {
@@ -440,6 +439,19 @@ describe("escrow-anchor", () => {
       .signers([takerWallet])
       .rpc();
 
+    // To close vault and escrow account
+    await program.methods
+      .cancel()
+      .accounts({
+        initializer: initializerWallet.publicKey,
+        vaultAccount: vault_account_pda_mintB,
+        vaultAuthority: vault_authority_pda,
+        initializerReleaseTokenAccount: initializerTokenAccountB,
+        escrowAccount: escrow_account_pda_mintB,
+      })
+      .signers([initializerWallet])
+      .rpc();
+
     let _takerTokenAccountA = await getAccount(
       provider.connection,
       takerTokenAccountA
@@ -455,6 +467,6 @@ describe("escrow-anchor", () => {
 
     assert.ok(Number(_takerTokenAccountA.amount) == 250); // 750 - 500 (RELEASE)
     assert.ok(Number(_takerTokenAccountB.amount) == 1500); // 500 + 1000 (RECEIVED)
-    assert.ok(Number(_initializerTokenAccountA.amount) == 500); // 500 (RECEIVED)
+    assert.ok(Number(_initializerTokenAccountA.amount) == 750); // 250 + 500 (RECEIVED)
   });
 });
