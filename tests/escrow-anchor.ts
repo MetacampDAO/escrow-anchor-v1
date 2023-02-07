@@ -202,8 +202,8 @@ describe("escrow-anchor", () => {
 
   it("Initialize escrow - trade #1 & #2", async () => {
     // INITIALIZER TO INITIALIZE TWO DIFFERENT ESCROW TRADE
-    // TRADE #1 INITIALIZER TRADE 500 (A) FOR 1000 (B) WITH MIN. 100 (B)
-    // TRADE #2 INITIALIZER TRADE 1000 (B) FOR 500 (A) WITH MIN. 100 (A)
+    // TRADE #1 INITIALIZER TRADE 500 (A) FOR 1000 (B)
+    // TRADE #2 INITIALIZER TRADE 1000 (B) FOR 500 (A)
 
     const [_vault_authority_pda] = await PublicKey.findProgramAddress(
       [Buffer.from(anchor.utils.bytes.utf8.encode("vault-authority"))],
